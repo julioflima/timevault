@@ -15,20 +15,22 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 # B(t0, $1M) — benchmark contínuo: bits alcançáveis com $1M no ano t0
-# Função logística ajustada por mínimos quadrados à tabela histórica (1965–2025)
+# Função logística ajustada por mínimos quadrados à tabela histórica (1945–2025)
+# Hardware: HMAC-SHA256 em GPUs (não ASICs)
 # B(t) = L / (1 + exp(-k * (t - t_mid))) + b
-# Parâmetros: L=74.89, k=0.0553, t_mid=2004.5, b=25.31  (MSE=5.12)
-BENCHMARK_L = 74.89
-BENCHMARK_K = 0.0553
-BENCHMARK_MID = 2004.5
-BENCHMARK_B = 25.31
+# Parâmetros: L=141.54, k=0.0233, t_mid=1925.9, b=-61.03  (MSE=2.13)
+BENCHMARK_L = 141.54
+BENCHMARK_K = 0.0233
+BENCHMARK_MID = 1925.9
+BENCHMARK_B = -61.03
 
 
 def get_benchmark(t0: float) -> int:
     """Retorna B(t0, $1M) — função logística contínua.
 
-    Ajustada aos dados históricos de custo de hardware (1965–2025).
-    Assíntota superior: ~100 bits.
+    Ajustada aos dados históricos de custo de hardware (1945–2025).
+    Hardware: GPUs para HMAC-SHA256 (ASICs não se aplicam).
+    Assíntota superior: ~80 bits.
     """
     exp_val = -BENCHMARK_K * (t0 - BENCHMARK_MID)
     # Clamp para evitar overflow
@@ -37,18 +39,26 @@ def get_benchmark(t0: float) -> int:
 
 
 def calc_n(t0: int, T_years: float) -> int:
-    """Passo 1: n = B(t0, $1M) + floor(log2(T * 365))"""
+    """Passo 1: n = B(t0, $1M) + floor(log2(T))
+
+    B = bits que $1M em GPUs quebra em 1 ano.
+    T em anos: >1 soma bits, <1 subtrai bits.
+    """
     B = get_benchmark(t0)
-    days = T_years * 365
-    if days < 1:
-        days = 1
-    n = B + math.floor(math.log2(days))
-    return n
+    if T_years <= 0:
+        T_years = 1 / 365
+    n = B + math.floor(math.log2(T_years))
+    return max(n, 8)  # mínimo 8 bits
 
 
-def calc_cost(T_years: float) -> float:
-    """Custo para quebrar hoje em 1 dia: $1M × T × 365"""
-    return 1_000_000 * T_years * 365
+def calc_cost(n: int, B: int) -> float:
+    """Custo para quebrar em 1 ano com hardware atual.
+
+    $1M compra 2^B tentativas/ano.
+    Precisamos de 2^n tentativas.
+    Custo = $1M × 2^(n - B)
+    """
+    return 1_000_000 * (2 ** (n - B))
 
 
 def generate_seed(n_bits: int) -> bytes:
@@ -141,34 +151,38 @@ def main():
         else:
             print("  Opção inválida.")
 
-    n = calc_n(t0, T)
-    cost = calc_cost(T)
     B = get_benchmark(t0)
+    n = calc_n(t0, T)
+    cost = calc_cost(n, B)
+    time_bits = math.floor(math.log2(T)) if T > 0 else 0
 
     print()
     print(f"  t₀ (ano atual):       {t0}")
-    print(f"  B(t₀, $1M):           {B} bits")
-    print(f"  Tempo alvo T:         {T} anos")
-    print(f"  Bits de dificuldade:  {n} bits")
-    print(f"  Custo p/ quebrar:     ${cost:,.0f} (hoje, em 1 dia)")
-    print(f"  Espaço de busca:      2^{n} = {2**n:,.0f} tentativas")
+    print(f"  B(t₀, $1M):           {B} bits (quebrável em 1 ano com GPUs)")
+    print(f"  Tempo alvo T:         {T:.4g} anos")
+    print(f"  Bits temporais:       {time_bits:+d} bits (⌊log₂({T:.4g})⌋)")
+    print(f"  Dificuldade:          n = {B} {time_bits:+d} = {n} bits")
+    print(f"  Espaço de busca:      2^{n}")
+    print(f"  Custo p/ quebrar:     ${cost:,.0f} (em 1 ano, hardware atual)")
     print()
 
     # --- Opção de trocar n ---
-    change = input(f"Deseja alterar o número de bits? (atual: {n}) [s/N]: ").strip().lower()
+    change = input(f"  Deseja alterar o número de bits? (atual: {n}) [s/N]: ").strip().lower()
     if change == "s":
         while True:
             try:
-                new_n = int(input(f"Novo valor de n (bits): "))
+                new_n = int(input(f"  Novo valor de n (bits): "))
                 if new_n < 8:
-                    print("Mínimo 8 bits.")
+                    print("  Mínimo 8 bits.")
                     continue
                 n = new_n
-                print(f"  Bits de dificuldade:  {n} bits")
-                print(f"  Espaço de busca:      2^{n} = {2**n:,.0f} tentativas")
+                cost = calc_cost(n, B)
+                print(f"  Dificuldade:          n = {n} bits")
+                print(f"  Espaço de busca:      2^{n}")
+                print(f"  Custo p/ quebrar:     ${cost:,.0f} (em 1 ano, hardware atual)")
                 break
             except ValueError:
-                print("Valor inválido.")
+                print("  Valor inválido.")
     print()
 
     # --- Passo 2-5: Frase secreta ---
