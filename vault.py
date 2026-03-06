@@ -103,16 +103,43 @@ def main():
     print()
 
     # --- Passo 1: Tempo alvo ---
+    print("  Por quanto tempo a mensagem deve ficar protegida?")
+    print()
+    print("    1) 1 semana        5) 10 anos")
+    print("    2) 1 mês           6) 50 anos")
+    print("    3) 6 meses         7) 100 anos")
+    print("    4) 1 ano           8) Personalizado")
+    print()
+
+    presets = {
+        "1": ("1 semana",   1/52),
+        "2": ("1 mês",      1/12),
+        "3": ("6 meses",    0.5),
+        "4": ("1 ano",      1.0),
+        "5": ("10 anos",    10.0),
+        "6": ("50 anos",    50.0),
+        "7": ("100 anos",   100.0),
+    }
+
     while True:
-        try:
-            T_input = input("Tempo alvo T (em anos, ex: 0.08 = 1 mês, 1, 5, 10, 50): ")
-            T = float(T_input)
-            if T <= 0:
-                print("T deve ser positivo.")
-                continue
+        choice = input("  Escolha [1-8]: ").strip()
+        if choice in presets:
+            label, T = presets[choice]
+            print(f"  → {label} (T = {T:.4g} anos)")
             break
-        except ValueError:
-            print("Valor inválido.")
+        elif choice == "8":
+            while True:
+                try:
+                    T = float(input("  Tempo em anos (ex: 0.5, 2, 25): ").strip())
+                    if T <= 0:
+                        print("  Deve ser positivo.")
+                        continue
+                    break
+                except ValueError:
+                    print("  Valor inválido.")
+            break
+        else:
+            print("  Opção inválida.")
 
     n = calc_n(t0, T)
     cost = calc_cost(T)
