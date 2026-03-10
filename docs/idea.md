@@ -6,7 +6,7 @@
 
 Um arquivo $F$ é encriptado com AES-256-GCM usando uma chave $K$ derivada via HMAC-SHA256 de uma **semente curta** $S$ de $n$ bits. Um hash $V = \text{HMAC-SHA256}(S,\ n)$ é publicado como **compromisso de verificação** — qualquer um pode testar candidatos contra $V$ sem precisar do arquivo. A chave é derivada encadeando: $K = \text{HMAC-SHA256}(S,\ V)$. Um único protocolo (HMAC-SHA256) para tudo.
 
-![Diagrama do Protocolo Time Vault](diagram.png)
+![Diagrama do Protocolo Time Vault](../assets/diagram.png)
 
 ---
 

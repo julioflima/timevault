@@ -22,6 +22,21 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 - **Configure submodule**: ensure `.gitmodules` is committed, submodule tracks `main` branch
 - **Set permissions**: configure `time-vault-secrets` so collaborators can write (push encrypted files) but not delete — use branch protection rules (require PR for deletion, or use a GitHub App/bot for writes)
 
+- **Repository descriptions (GitHub):**
+  - `timevault`: "Cost-based time-lock encryption protocol — encrypt secrets that become breakable over time as hardware improves. Static site + Python algorithm + Bitcoin bounty integration."
+  - `time-vault-secrets`: "Public append-only vault storage for Time Vault encrypted secrets. Each file is a time-locked ciphertext identified by its verification hash V."
+
+- **README.md** for `timevault` repo (root):
+  - Title: "Time Vault — Cost-Based Time-Lock Encryption"
+  - One-paragraph summary: encrypt a secret (phrase or file) so that breaking it costs $1M today but becomes cheaper as hardware evolves. Based on HMAC-SHA256 brute-force benchmarks fitted to 80 years of hardware data (1945–2025).
+  - Section: **How it works** — 6-step protocol summary (difficulty → seed → verification hash → key → encrypt → publish). Reference the diagram image from `assets/`.
+  - Section: **Try it** — link to the live GitHub Pages site.
+  - Section: **Whitepaper** — link to the PDF and `docs/idea.md`.
+  - Section: **Project structure** — brief directory map (`algorithm/`, `docs/`, `assets/`, `web/`, `time-vault-secrets/`).
+  - Section: **Bitcoin integration** — one paragraph explaining the P2WSH hashlock bounty + OP_RETURN on-chain proof.
+  - Section: **Development** — `npm install`, `npm run dev`, `npm run build`. Python: `pip install -r algorithm/requirements.txt`, `python algorithm/vault.py`.
+  - Keep it concise — link to `docs/idea.md` for full details.
+
 ---
 
 ## Phase 3: Project Scaffolding + GitHub Actions
