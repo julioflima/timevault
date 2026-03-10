@@ -4,7 +4,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase -1: Reorganize Directory Structure
+## Phase 1: Reorganize Directory Structure
 
 - Current flat structure is messy — reorganize files into logical directories:
   - `algorithm/` — `vault.py`, `fit_benchmark.py`, `store_phrase.py`, `requirements.txt`, `vault.json`
@@ -14,7 +14,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 0: Rename Repo + Create Subrepo
+## Phase 2: Rename Repo + Create Subrepo
 
 - **Rename repo** from `article-time-vault` to `timevault` (via GitHub settings or CLI)
 - **Create `time-vault-secrets` repo** on GitHub (public, empty)
@@ -24,7 +24,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 1: Project Scaffolding + GitHub Actions
+## Phase 3: Project Scaffolding + GitHub Actions
 
 1. **Initialize SvelteKit project** — Svelte 5, TypeScript, Sass, `adapter-static`. Set `paths.base` for GitHub Pages. Move assets from `assets/` to `static/`.
 
@@ -37,7 +37,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 2: Design System + Layout
+## Phase 4: Design System + Layout
 
 3. **Global Sass styles** — Glassmorphism utilities (`backdrop-filter: blur`, semi-transparent cards), color palette (white/black only), utopia.png as `position: fixed` full-viewport background, clean sans-serif typography. The page background color should be derived from utopia.png repeated and heavily blurred (`background: repeat` + `filter: blur(~60px)`) so the dominant color bleeds through as an ambient backdrop behind the main image.
 
@@ -63,7 +63,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 3: PyScript Integration (Client-Side Crypto)
+## Phase 5: PyScript Integration (Client-Side Crypto)
 
 7. **Adapt vault.py for browser** → `static/vault_browser.py`. **Using Option A: `cryptography` in Pyodide** — import `cryptography` directly in Pyodide (available since v0.24+). vault.py runs nearly unchanged, no JS bridge code needed. Tradeoff: ~17MB total first load (Pyodide ~12MB + `cryptography` ~5MB), all cached after first visit. Simpler code, zero bridge bugs, same exact algorithm as the Python CLI.
 
@@ -73,7 +73,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 4: GitHub Storage (`time-vault-secrets`)
+## Phase 6: GitHub Storage (`time-vault-secrets`)
 
 10. **Storage structure (GitHub repo as database)** — Separate public repo `time-vault-secrets` acts as a flat-file database. Each vault is stored as `{V_hex}.vault.json` containing `{ "C", "n", "t0", "T" }`. V (the public verification value) is the filename — guarantees uniqueness and enables lookup by V.
 
@@ -90,7 +90,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 5: Bitcoin Integration
+## Phase 7: Bitcoin Integration
 
 13. **Bitcoin bounty + on-chain proof (combined design)** — A single funding transaction registers the vault on the blockchain and locks the bounty:
 
@@ -152,7 +152,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ---
 
-## Phase 6: Whitepaper + Article
+## Phase 8: Whitepaper + Article
 
 15. **PDF in CI** — `pandoc idea.md -o static/whitepaper.pdf --pdf-engine=xelatex`. Serve at `/whitepaper.pdf`.
 
