@@ -1,0 +1,3 @@
+[submodule "time-vault-secrets"]
+	path = time-vault-secrets
+	url = https://github.com/julioflima/time-vault-secrets.git
