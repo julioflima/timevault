@@ -271,7 +271,7 @@ $$\texttt{\{V\_hex\}.vault.json} = \{ C,\ n,\ t_0,\ T \}$$
 
 **Relação com a blockchain:** a transação Bitcoin de financiamento contém, no OP_RETURN, a URL completa do vault:
 
-$$\texttt{https://julioflima.github.io/timevault/v/\{V\_hex\}}$$
+$$\texttt{https://julioflima.github.io/timevault/v/\{V\_hex\}.vault.json}$$
 
 Essa URL aponta para a página de decrypt do site, que busca o arquivo `{V_hex}.vault.json` no repositório GitHub. Assim, o blockchain **aponta para o arquivo que contém o segredo encriptado** — quem encontra $S$ pode seguir a URL, obter $C$, derivar $K = \text{HMAC-SHA256}(S, V)$, e decriptar $F$.
 
@@ -312,7 +312,7 @@ O nó Bitcoin executa `SHA256(S)` e verifica contra o hash-alvo no script. Se ig
 
 **Saída 1 — OP_RETURN (Metadados do Vault):**
 
-$$\text{OP\_RETURN}\ \texttt{"https://julioflima.github.io/timevault/v/\{V\_hex\}"}$$
+$$\text{OP\_RETURN}\ \texttt{"https://julioflima.github.io/timevault/v/\{V\_hex\}.vault.json"}$$
 
 | Elemento | Descrição |
 |----------|-----------|
@@ -375,10 +375,10 @@ O usuário paga uma única vez, escaneando um QR code com qualquer carteira Bitc
 **Fluxo do Worker (server-side):**
 1. Monitora o endereço de doação para transações recebidas (via API mempool.space)
 2. Parseia o memo OP_RETURN da transação do usuário para extrair `V_hex` e `P2WSH_address`
-3. **Deduplicação via blockchain (sem banco de dados):** consulta a blockchain por qualquer OP_RETURN existente contendo `timevault/v/{V_hex}`. Se encontrar → já processado, ignora.
+3. **Deduplicação via blockchain (sem banco de dados):** consulta a blockchain por qualquer OP_RETURN existente contendo `timevault/v/{V_hex}.vault.json`. Se encontrar → já processado, ignora.
 4. Constrói a **transação de financiamento** com 3 saídas:
    - **Saída 0 — P2WSH hashlock (bounty):** 99% do valor recebido (menos fees) para o endereço P2WSH do memo
-   - **Saída 1 — OP_RETURN:** `https://julioflima.github.io/timevault/v/{V_hex}`
+   - **Saída 1 — OP_RETURN:** `https://julioflima.github.io/timevault/v/{V_hex}.vault.json`
    - **Saída 2 — Troco:** sats restantes de volta para o endereço do Worker
 5. O 1% retido no endereço de doação **é** a doação ao projeto — nenhuma saída separada necessária
 6. Transmite a transação de financiamento via API blockchain

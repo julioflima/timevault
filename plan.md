@@ -96,7 +96,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
     **Funding transaction (created by vault creator):**
     - **Output 0 — P2WSH hashlock bounty**: Script = `OP_SHA256 <SHA256(S)> OP_EQUAL`. The bounty amount (any amount above 330 sats dust limit). Can only be spent by revealing S.
-    - **Output 1 — OP_RETURN** (all ASCII, ~108 bytes): `https://julioflima.github.io/timevault/v/{V_hex}`. Clickable URL on block explorers, links directly to the vault's decrypt page. `n` is stored in the vault JSON file. `t0` comes from the block timestamp (free). Since Bitcoin Core v30 (Oct 2025), OP_RETURN supports up to ~100KB.
+    - **Output 1 — OP_RETURN** (all ASCII, ~108 bytes): `https://julioflima.github.io/timevault/v/{V_hex}.vault.json`. Clickable URL on block explorers, links directly to the vault's decrypt page. `n` is stored in the vault JSON file. `t0` comes from the block timestamp (free). Since Bitcoin Core v30 (Oct 2025), OP_RETURN supports up to ~100KB.
     - Minimum total cost: ~550 sats (~$0.55) — 330 sats bounty + ~220 sats fee (slightly larger tx due to OP_RETURN data).
 
     **Spending transaction (when vault is cracked):**
@@ -127,10 +127,10 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
     **Worker flow (server-side, `worker/src/index.ts`):**
     1. Monitors the donation address for incoming transactions (via mempool.space WebSocket or polling API)
     2. Parses the OP_RETURN memo from the user's tx to extract `V_hex` and `P2WSH_address`
-    3. **Deduplication via blockchain (no database):** queries blockchain API for any existing OP_RETURN containing `timevault/v/{V_hex}`. If found → already processed, skip.
+    3. **Deduplication via blockchain (no database):** queries blockchain API for any existing OP_RETURN containing `timevault/v/{V_hex}.vault.json`. If found → already processed, skip.
     4. Builds the **funding transaction** with 3 outputs:
        - **Output 0 — P2WSH hashlock bounty**: sends 99% of received amount (minus fees) to the P2WSH address from the memo
-       - **Output 1 — OP_RETURN**: `https://julioflima.github.io/timevault/v/{V_hex}`
+       - **Output 1 — OP_RETURN**: `https://julioflima.github.io/timevault/v/{V_hex}.vault.json`
        - **Output 2 — Change**: any remaining sats back to the Worker's address
     5. The 1% kept by the donation address **is** the project donation — no separate output needed
     6. Broadcasts the funding tx via blockchain API
@@ -218,7 +218,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 3. **Bitcoin address standard** — **P2WSH** (SegWit) for the hashlock bounty. Uses script `OP_SHA256 <SHA256(S)> OP_EQUAL` which forces the cracker to reveal S on-chain when spending. Combined with OP_RETURN in the same funding transaction for full on-chain correlation.
 
-4. **OP_RETURN format** — All ASCII, single clickable URL: `https://julioflima.github.io/timevault/v/{V_hex}`. Block explorers auto-linkify it. `n` is read from the vault JSON file at the URL. `t0` is derived from the block timestamp (free, no need to store). Since Bitcoin Core v30 (Oct 2025), OP_RETURN supports up to ~100KB — the ~108 byte URL fits easily. The URL prefix `julioflima.github.io/timevault` acts as both protocol identifier and direct link.
+4. **OP_RETURN format** — All ASCII, single clickable URL: `https://julioflima.github.io/timevault/v/{V_hex}.vault.json`. Block explorers auto-linkify it. `n` is read from the vault JSON file at the URL. `t0` is derived from the block timestamp (free, no need to store). Since Bitcoin Core v30 (Oct 2025), OP_RETURN supports up to ~100KB — the ~108 byte URL fits easily. The URL prefix `julioflima.github.io/timevault` acts as both protocol identifier and direct link.
 
 5. **Satoshi's wallets as precedent** — The article references Satoshi Nakamoto's ~1.1M BTC held in P2PK (Pay-to-Public-Key) addresses, identified by researcher Sergio Lerner via the "Patoshi Pattern" (extraNonce fingerprinting in blocks 1–36,000). These addresses expose the raw public key on-chain, making them vulnerable to quantum attacks via Shor's algorithm. Bitcoin developers proposed BIP-360 (quantum-resistant address migration). Time Vault makes this same pattern intentional and quantifiable: encryption that is secure today but will eventually be breakable as hardware improves.
 
