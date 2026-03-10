@@ -251,11 +251,11 @@ O protocolo Time Vault torna esse padrão **intencional e quantificável**: encr
 
 O ciphertext $C$ e os metadados públicos são armazenados em um repositório GitHub público (`time-vault-secrets`), que funciona como um banco de dados flat-file de append-only. Cada vault é salvo como um arquivo JSON nomeado pelo hash de verificação:
 
-$$\texttt{\{V\_hex\}.json} = \{ C,\ n,\ t_0,\ T \}$$
+$$\texttt{\{V\_hex\}.vault.json} = \{ C,\ n,\ t_0,\ T \}$$
 
 | Campo | Descrição |
 |-------|-----------|
-| Nome do arquivo | `{V_hex}` — V como identificador único |
+| Nome do arquivo | `{V_hex}.vault.json` — V como identificador único |
 | $C$ | Ciphertext (AES-256-GCM) — o segredo encriptado |
 | $n$ | Número de bits da semente — dificuldade |
 | $t_0$ | Ano de criação |
@@ -263,19 +263,19 @@ $$\texttt{\{V\_hex\}.json} = \{ C,\ n,\ t_0,\ T \}$$
 
 **Leitura (sem autenticação):** o repositório é público. Qualquer pessoa pode listar e ler os vaults via GitHub API:
 - `GET /repos/{owner}/time-vault-secrets/contents/` — lista todos os vaults
-- `GET /repos/{owner}/time-vault-secrets/contents/{V_hex}` — lê um vault específico
+- `GET /repos/{owner}/time-vault-secrets/contents/{V_hex}.vault.json` — lê um vault específico
 
 **Escrita (token público):** um Personal Access Token (PAT) fine-grained é **hardcoded no cliente** com permissão `Contents:write` apenas no repositório `time-vault-secrets`. Qualquer pessoa pode adicionar vaults — isso é intencional. Deleção é impedida por branch protection rules (sem force-push, sem deleção direta). O repositório é um **registro público e imutável** de vaults.
 
 **Relação com a blockchain:** a transação Bitcoin de financiamento contém, no OP_RETURN, a URL completa do vault:
 
-$$\texttt{https://julioflima.github.io/timevault/v/\{V\_hex\}?n=\{n\}}$$
+$$\texttt{https://julioflima.github.io/timevault/v/\{V\_hex\}}$$
 
-Essa URL aponta para a página de decrypt do site, que busca o arquivo `{V_hex}` no repositório GitHub. Assim, o blockchain **aponta para o arquivo que contém o segredo encriptado** — quem encontra $S$ pode seguir a URL, obter $C$, derivar $K = \text{HMAC-SHA256}(S, V)$, e decriptar $F$.
+Essa URL aponta para a página de decrypt do site, que busca o arquivo `{V_hex}.vault.json` no repositório GitHub. Assim, o blockchain **aponta para o arquivo que contém o segredo encriptado** — quem encontra $S$ pode seguir a URL, obter $C$, derivar $K = \text{HMAC-SHA256}(S, V)$, e decriptar $F$.
 
 **Fluxo completo:**
-1. Blockchain (OP_RETURN) → URL com $V$ e $n$
-2. URL → GitHub repo → arquivo `{V_hex}` → $C$
+1. Blockchain (OP_RETURN) → URL com $V$
+2. URL → GitHub repo → arquivo `{V_hex}.vault.json` → $C$
 3. Com $S$ (revelado no witness ou obtido por busca): $K = \text{HMAC-SHA256}(S, V)$
 4. $F = \text{AES-256-GCM.Dec}(K, C)$ — segredo revelado
 
@@ -310,17 +310,17 @@ O nó Bitcoin executa `SHA256(S)` e verifica contra o hash-alvo no script. Se ig
 
 **Saída 1 — OP_RETURN (Metadados do Vault):**
 
-$$\text{OP\_RETURN}\ \texttt{"https://julioflima.github.io/timevault/v/\{V\_hex\}?n=\{n\}"}$$
+$$\text{OP\_RETURN}\ \texttt{"https://julioflima.github.io/timevault/v/\{V\_hex\}"}$$
 
 | Elemento | Descrição |
 |----------|-----------|
 | OP_RETURN | Marca a saída como não-gastável; usado para armazenar dados arbitrários no blockchain |
 | URL completa | Link clicável em block explorers, aponta diretamente para a página de decrypt do vault |
 | `{V_hex}` | V codificado em hexadecimal (64 caracteres ASCII) — identifica unicamente o vault |
-| `?n={n}` | Dificuldade como query parameter — a página pode ler automaticamente |
+| `n` | **Não armazenado no OP_RETURN** — lido do arquivo vault JSON via URL |
 | `t_0` | **Não armazenado** — derivado do timestamp do bloco (já registrado pelo Bitcoin) |
 | Custo | 0 sats (saída não-gastável, sem dust limit) |
-| Tamanho | ~111 bytes (ASCII). Desde Bitcoin Core v30 (Out 2025), OP_RETURN suporta até ~100KB |
+| Tamanho | ~108 bytes (ASCII). Desde Bitcoin Core v30 (Out 2025), OP_RETURN suporta até ~100KB |
 
 **Custo mínimo total da transação:**
 
@@ -353,7 +353,7 @@ Se $V_{\text{check}} = V$ (o $V$ do OP_RETURN na transação de financiamento), 
 
 | Evento | Dado on-chain | Verificação |
 |--------|--------------|-------------|
-| Vault criado | OP_RETURN: URL com $V$ e $n$ | Link para o vault + dificuldade. $t_0$ do timestamp do bloco |
+| Vault criado | OP_RETURN: URL com $V$ | Link para o vault. $n$ do arquivo JSON. $t_0$ do timestamp do bloco |
 | Bounty travado | Saída P2WSH com hashlock | Fundos travados até $S$ ser encontrado |
 | Vault quebrado | $S$ revelado no witness | $\text{HMAC-SHA256}(S,\ n) = V$ ✓ |
 
