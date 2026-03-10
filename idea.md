@@ -285,9 +285,9 @@ Essa URL aponta para a página de decrypt do site, que busca o arquivo `{V_hex}.
 
 O Time Vault usa uma transação Bitcoin para registrar o vault na blockchain e travar um bounty que só pode ser resgatado revelando $S$. A mesma transação contém a URL para o arquivo com o ciphertext $C$ (no OP_RETURN), criando um vínculo permanente entre o bounty on-chain e o segredo encriptado off-chain.
 
-**Transação de Financiamento (criada pelo criador do vault):**
+**Transação de Financiamento (construída pelo Worker):**
 
-A transação possui duas saídas:
+O usuário paga via QR code ao endereço de doação do projeto. O Worker constrói e transmite a transação de financiamento com as seguintes saídas:
 
 **Saída 0 — P2WSH Hashlock (Bounty):**
 
@@ -358,6 +358,46 @@ Se $V_{\text{check}} = V$ (o $V$ do OP_RETURN na transação de financiamento), 
 | Vault quebrado | $S$ revelado no witness | $\text{HMAC-SHA256}(S,\ n) = V$ ✓ |
 
 **O blockchain se torna um registro de prova-de-quebra**: vault existe ($V$ no OP_RETURN) → bounty travado (P2WSH) → vault quebrado ($S$ no witness).
+
+---
+
+### Fluxo de Pagamento — Worker como Intermediário
+
+O usuário paga uma única vez, escaneando um QR code com qualquer carteira Bitcoin. Um **Worker** (função serverless stateless) constrói a transação de financiamento com todas as saídas necessárias.
+
+**Fluxo do usuário (client-side):**
+1. O site gera um QR code BIP21: `bitcoin:{donation_address}?amount={amount}`
+2. O pagamento do usuário inclui um memo OP_RETURN: `TV-{V_hex}-{P2WSH_address}`
+3. Usuário escaneia o QR com qualquer carteira Bitcoin e paga. Pronto — zero complexidade.
+
+**Fluxo do Worker (server-side):**
+1. Monitora o endereço de doação para transações recebidas (via API mempool.space)
+2. Parseia o memo OP_RETURN da transação do usuário para extrair `V_hex` e `P2WSH_address`
+3. **Deduplicação via blockchain (sem banco de dados):** consulta a blockchain por qualquer OP_RETURN existente contendo `timevault/v/{V_hex}`. Se encontrar → já processado, ignora.
+4. Constrói a **transação de financiamento** com 3 saídas:
+   - **Saída 0 — P2WSH hashlock (bounty):** 99% do valor recebido (menos fees) para o endereço P2WSH do memo
+   - **Saída 1 — OP_RETURN:** `https://julioflima.github.io/timevault/v/{V_hex}`
+   - **Saída 2 — Troco:** sats restantes de volta para o endereço do Worker
+5. O 1% retido no endereço de doação **é** a doação ao projeto — nenhuma saída separada necessária
+6. Transmite a transação de financiamento via API blockchain
+
+**O Worker é stateless:**
+- **Sem banco de dados** — a blockchain é a fonte de verdade para deduplicação (verificação de existência de OP_RETURN) e saldo (consulta de UTXOs)
+- O Worker pode crashar e reiniciar sem perder estado
+- Necessita apenas: uma chave privada (secret do Cloudflare) + endpoint de API blockchain (mempool.space)
+
+**Custo para o usuário:**
+
+| Componente | Valor |
+|------------|-------|
+| Pagamento do usuário ao endereço de doação | valor escolhido pelo usuário |
+| Worker retém 1% como doação | ~1% do valor |
+| Worker envia 99% ao bounty P2WSH | ~99% menos fees |
+| Fee da tx do Worker (~250 vBytes × 1 sat/vB) | ~250 sats |
+| OP_RETURN | 0 sats |
+| **Pagamento mínimo do usuário** | **~600 sats** (330 bounty + 250 fee + ~20 doação) |
+
+**Por que Worker?** Carteiras comuns via BIP21 QR só suportam envio para **um endereço** — não conseguem construir transações com múltiplas saídas customizadas (P2WSH + OP_RETURN). O Worker recebe o pagamento simples e o transforma na transação com 3 saídas. O risco custodial é desprezível (valores mínimos de ~600 sats).
 
 ---
 

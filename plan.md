@@ -115,10 +115,40 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
     - Use `bitcoinjs-lib` (TypeScript, runs in browser) for P2WSH address generation
     - Compute `SHA256(S)` as the hashlock target
     - Generate the P2WSH address from the hashlock script
-    - Display: P2WSH address + QR code + OP_RETURN instructions
-    - The user broadcasts the funding tx from their own wallet
+    - Display: BIP21 QR code pointing to the Worker's donation address
 
-14. **Split payment** — When generating the payment QR: 99% to vault bounty P2WSH address, 1% to project donation address. Show combined QR or two separate QRs. Actual broadcast is done by user via their own wallet.
+14. **Payment flow — Worker (Option A: Intermediary)** — A stateless Worker handles transaction construction so the user only needs to scan a single QR code from any Bitcoin wallet.
+
+    **User flow (client-side):**
+    - Site generates a BIP21 QR code: `bitcoin:{donation_address}?amount={amount}`
+    - The user's payment includes an OP_RETURN memo: `TV-{V_hex}-{P2WSH_address}`
+    - User scans QR with any Bitcoin wallet and pays. Done — zero complexity.
+
+    **Worker flow (server-side, `worker/src/index.ts`):**
+    1. Monitors the donation address for incoming transactions (via mempool.space WebSocket or polling API)
+    2. Parses the OP_RETURN memo from the user's tx to extract `V_hex` and `P2WSH_address`
+    3. **Deduplication via blockchain (no database):** queries blockchain API for any existing OP_RETURN containing `timevault/v/{V_hex}`. If found → already processed, skip.
+    4. Builds the **funding transaction** with 3 outputs:
+       - **Output 0 — P2WSH hashlock bounty**: sends 99% of received amount (minus fees) to the P2WSH address from the memo
+       - **Output 1 — OP_RETURN**: `https://julioflima.github.io/timevault/v/{V_hex}`
+       - **Output 2 — Change**: any remaining sats back to the Worker's address
+    5. The 1% kept by the donation address **is** the project donation — no separate output needed
+    6. Broadcasts the funding tx via blockchain API
+
+    **Worker is stateless:**
+    - No database — the blockchain is the source of truth for deduplication (OP_RETURN existence check) and balance (UTXO query)
+    - Worker can crash and restart without losing state
+    - Needs only: a private key (Worker secret) + blockchain API endpoint (mempool.space)
+
+    **Cost breakdown (user pays):**
+    | Component | Value |
+    |-----------|-------|
+    | User's tx to donation address | user-chosen amount |
+    | Worker keeps 1% as donation | ~1% of amount |
+    | Worker sends 99% to P2WSH bounty | ~99% minus fees |
+    | Worker tx fee (~250 vBytes × 1 sat/vB) | ~250 sats |
+    | OP_RETURN | 0 sats |
+    | **Minimum user payment** | **~600 sats** (330 bounty + 250 fee + ~20 donation) |
 
 ---
 
@@ -152,6 +182,8 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 - `src/lib/github.ts` — GitHub API client
 - `src/lib/bitcoin.ts` — Address derivation, QR generation
 - `static/vault_browser.py` — Browser-adapted vault algorithm
+- `worker/src/index.ts` — Worker: monitors donations, builds funding txs
+- `worker/wrangler.toml` — Worker config
 
 ---
 
@@ -174,7 +206,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 - **GitHub Pages** for hosting, confirmed
 - **Separate repo** `time-vault-secrets` for storage, confirmed
 - **Scope includes**: encrypt page, decrypt page, GitHub storage, Bitcoin address, PDF, CI/CD
-- **Scope excludes**: actual Bitcoin transaction broadcasting (user uses their own wallet), no backend server
+- **Scope excludes**: no traditional backend server (Worker is the only server-side component)
 
 ---
 
@@ -193,5 +225,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 6. **On-chain data lifecycle** — A vault's complete lifecycle is recorded on the Bitcoin blockchain:
    - **Funding tx**: Output 0 = P2WSH hashlock bounty (locked by `SHA256(S)`), Output 1 = OP_RETURN with clickable URL containing V. `n` is in the vault JSON file. `t0` comes from the block timestamp.
    - **Spending tx**: Witness data reveals S. Anyone can verify `HMAC-SHA256(S, n) == V`. The vault is publicly and permanently "cracked."
-   - **Minimum cost**: ~550 sats (~$0.55) — 330 sats bounty (P2WSH dust limit) + ~220 sats fee.
+   - **Minimum cost**: ~600 sats — 330 sats bounty (P2WSH dust limit) + ~250 sats fee + ~20 sats donation.
    - **The blockchain becomes a proof-of-crack ledger**: vault exists (V in OP_RETURN) → bounty locked (P2WSH) → vault broken (S in witness).
+
+7. **Payment UX — Worker intermediary** — The user scans a single BIP21 QR code from any Bitcoin wallet. Payment goes to a project donation address with an OP_RETURN memo (`TV-{V_hex}-{P2WSH_address}`). A stateless Worker monitors the donation address, parses the memo, and builds the funding tx (P2WSH + OP_RETURN + change) in one transaction. The Worker uses the **blockchain as its database**: deduplication is done by checking if an OP_RETURN with the vault's V already exists on-chain. No external database, no state — the Worker can crash and restart without data loss. The 1% donation is simply the amount kept by the donation address. Minimum user payment: ~600 sats.
