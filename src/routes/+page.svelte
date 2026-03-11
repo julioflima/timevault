@@ -1,11 +1,24 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import StepFlow from "$lib/components/StepFlow.svelte";
+  import {
+    preload,
+    calcParams,
+    encryptPhrase,
+    encryptFile,
+    type VaultResult,
+  } from "$lib/pyodide";
 
   let current = $state(0);
   let unlockDate = $state("");
   let secretType = $state<"phrase" | "file" | null>(null);
   let phrase = $state("");
   let file = $state<File | null>(null);
+
+  let encrypting = $state(false);
+  let vaultResult = $state<VaultResult | null>(null);
+  let pyReady = $state(false);
+  let pyLoading = $state(false);
 
   // Computed from date
   let yearsFromNow = $derived(() => {
@@ -43,6 +56,48 @@
     const input = e.target as HTMLInputElement;
     if (input.files?.[0]) file = input.files[0];
   }
+
+  async function startEncrypt() {
+    if (encrypting) return;
+    encrypting = true;
+    pyLoading = !pyReady;
+
+    try {
+      const t0 = new Date().getFullYear();
+      const T = yearsFromNow();
+
+      if (secretType === "phrase") {
+        vaultResult = await encryptPhrase(phrase, t0, T || 1);
+      } else if (file) {
+        const buf = new Uint8Array(await file.arrayBuffer());
+        vaultResult = await encryptFile(buf, t0, T || 1);
+      }
+      pyReady = true;
+      pyLoading = false;
+    } catch (err) {
+      console.error("Encryption failed:", err);
+    } finally {
+      encrypting = false;
+    }
+  }
+
+  function downloadVault() {
+    if (!vaultResult) return;
+    const { S, ...vault } = vaultResult;
+    const blob = new Blob([JSON.stringify(vault, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vault_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  onMount(() => {
+    preload();
+  });
 </script>
 
 <StepFlow
@@ -54,7 +109,11 @@
   <div class="hero text-center">
     <h1 class="hero__title">Time Vault</h1>
     <p class="hero__sub">Encrypt a secret for the future</p>
-    <button class="hero__arrow" onclick={() => current = 1} aria-label="Begin">
+    <button
+      class="hero__arrow"
+      onclick={() => (current = 1)}
+      aria-label="Begin"
+    >
       <span class="hero__arrow-icon">&#8595;</span>
       <span class="hero__arrow-text">press enter</span>
     </button>
@@ -147,14 +206,33 @@
 
 {#snippet step7()}
   <div class="card step-card text-center">
-    <h2>Your vault is ready</h2>
-    <p class="hint">Encryption result will appear here</p>
-    <div class="result-placeholder mono">
-      <p>C = ...</p>
-      <p>V = ...</p>
-      <p>n = {nBits()} bits</p>
-    </div>
-    <a href="/timevault/decrypt" class="btn btn--outline">Go to Decrypt</a>
+    {#if encrypting}
+      <h2>{pyLoading ? "Loading crypto engine..." : "Encrypting..."}</h2>
+      <div class="spinner"></div>
+    {:else if vaultResult}
+      <h2>Your vault is ready</h2>
+      <div class="result-box mono">
+        <p><strong>n</strong> = {vaultResult.n} bits</p>
+        <p class="truncate"><strong>V</strong> = {vaultResult.V}</p>
+        <p class="truncate">
+          <strong>C</strong> = {vaultResult.C.slice(0, 40)}...
+        </p>
+      </div>
+      <div class="seed-box">
+        <p class="seed-label">
+          Save this seed — it is the <strong>only</strong> way to decrypt:
+        </p>
+        <code class="seed mono">{vaultResult.S}</code>
+      </div>
+      <div class="result-actions">
+        <button class="btn" onclick={downloadVault}>Download vault</button>
+        <a href="/timevault/decrypt" class="btn btn--outline">Go to Decrypt</a>
+      </div>
+    {:else}
+      <h2>Your vault is ready</h2>
+      <p class="hint">Press Enter or click below to encrypt</p>
+      <button class="btn btn--large" onclick={startEncrypt}>Encrypt now</button>
+    {/if}
   </div>
 {/snippet}
 
@@ -166,7 +244,7 @@
   }
 
   .hero__title {
-    font-family: 'Kalam', cursive;
+    font-family: "Kalam", cursive;
     font-size: clamp(3rem, 8vw, 6rem);
     font-weight: 700;
     letter-spacing: -0.01em;
@@ -206,7 +284,11 @@
   }
 
   @keyframes bounce {
-    0%, 20%, 50%, 80%, 100% {
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
       transform: translateY(0);
     }
     40% {
@@ -297,7 +379,7 @@
     color: $color-white-20;
   }
 
-  .result-placeholder {
+  .result-box {
     @include glass(12px, $color-white-10, $color-white-20);
     width: 100%;
     padding: 1.5rem;
@@ -307,5 +389,59 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+
+    strong {
+      color: $color-white;
+    }
+  }
+
+  .truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .seed-box {
+    width: 100%;
+    text-align: center;
+  }
+
+  .seed-label {
+    font-size: 0.875rem;
+    color: $color-white-60;
+    margin-bottom: 0.5rem;
+  }
+
+  .seed {
+    display: block;
+    padding: 0.75rem 1rem;
+    background: $color-white-10;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    word-break: break-all;
+    user-select: all;
+    color: $color-white;
+  }
+
+  .result-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid $color-white-20;
+    border-top-color: $color-white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
