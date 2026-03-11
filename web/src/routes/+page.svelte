@@ -237,7 +237,9 @@
       <p class="hint">Scan to fund the Bitcoin bounty for this vault</p>
       <img class="qr-img" src={btcInfo.qrDataURL} alt="Bitcoin QR code" />
       <p class="mono btc-addr">{btcInfo.p2wshAddress}</p>
-      <p class="hint">P2WSH hashlock — anyone who cracks S can claim this bounty</p>
+      <p class="hint">
+        P2WSH hashlock — anyone who cracks S can claim this bounty
+      </p>
     {:else}
       <p class="hint">Bitcoin bounty — encrypt first, then fund</p>
       <div class="qr-placeholder">

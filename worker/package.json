@@ -1,19 +1,19 @@
 {
-  "name": "timevault-worker",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
-  },
-  "devDependencies": {
-    "wrangler": "^3.100.0",
-    "@cloudflare/workers-types": "^4.20241230.0",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "bitcoinjs-lib": "^6.1.7",
-    "@noble/hashes": "^1.7.1"
-  }
+    "name": "timevault-worker",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "start": "tsx src/index.ts"
+    },
+    "devDependencies": {
+        "tsx": "^4.19.0",
+        "typescript": "^5.9.3",
+        "@types/node": "^22.0.0"
+    },
+    "dependencies": {
+        "bitcoinjs-lib": "^6.1.7",
+        "@noble/hashes": "^1.7.1",
+        "dotenv": "^16.4.7"
+    }
 }

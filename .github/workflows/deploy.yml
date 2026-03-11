@@ -24,17 +24,40 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      - name: Install pandoc + LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended texlive-fonts-extra
+
+      - name: Generate whitepaper PDF
+        run: |
+          pandoc docs/idea.md \
+            -o web/static/whitepaper.pdf \
+            --pdf-engine=xelatex \
+            --resource-path=web/static \
+            -V geometry:margin=1in \
+            -V mainfont="DejaVu Sans" \
+            -V monofont="DejaVu Sans Mono" \
+            -V fontsize=11pt \
+            -V colorlinks=true \
+            -V linkcolor=black \
+            -V urlcolor=blue \
+            -V header-includes='\usepackage{float}\floatplacement{figure}{H}'
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - run: npm ci
+        working-directory: web
       - run: npm run build
+        working-directory: web
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: build
+          path: web/build
 
   deploy:
     environment:
