@@ -9,6 +9,11 @@
     type VaultResult,
   } from "$lib/pyodide";
   import { publishVault, isTokenConfigured, type VaultFile } from "$lib/github";
+  import {
+    computeBitcoinInfo,
+    isDonationConfigured,
+    type BitcoinInfo,
+  } from "$lib/bitcoin";
 
   let current = $state(0);
   let unlockDate = $state("");
@@ -24,6 +29,8 @@
   let publishing = $state(false);
   let published = $state(false);
   let publishError = $state("");
+
+  let btcInfo = $state<BitcoinInfo | null>(null);
 
   // Computed from date
   let yearsFromNow = $derived(() => {
@@ -79,6 +86,11 @@
       }
       pyReady = true;
       pyLoading = false;
+
+      // Compute Bitcoin info if donation is configured
+      if (vaultResult && isDonationConfigured()) {
+        btcInfo = await computeBitcoinInfo(vaultResult.V, vaultResult.S);
+      }
     } catch (err) {
       console.error("Encryption failed:", err);
     } finally {
@@ -221,10 +233,20 @@
 {#snippet step6()}
   <div class="card step-card text-center">
     <h2>Support the project</h2>
-    <p class="hint">Bitcoin bounty & donation — coming soon</p>
-    <div class="qr-placeholder">
-      <span class="mono">QR</span>
-    </div>
+    {#if btcInfo?.qrDataURL}
+      <p class="hint">Scan to fund the Bitcoin bounty for this vault</p>
+      <img class="qr-img" src={btcInfo.qrDataURL} alt="Bitcoin QR code" />
+      <p class="mono btc-addr">{btcInfo.p2wshAddress}</p>
+      <p class="hint">P2WSH hashlock — anyone who cracks S can claim this bounty</p>
+    {:else}
+      <p class="hint">Bitcoin bounty — encrypt first, then fund</p>
+      <div class="qr-placeholder">
+        <span class="mono">QR</span>
+      </div>
+      {#if !isDonationConfigured()}
+        <p class="hint">Donation address not configured yet</p>
+      {/if}
+    {/if}
   </div>
 {/snippet}
 
@@ -416,6 +438,19 @@
     justify-content: center;
     font-size: 2rem;
     color: $color-white-20;
+  }
+
+  .qr-img {
+    width: 200px;
+    height: 200px;
+    border-radius: 8px;
+  }
+
+  .btc-addr {
+    font-size: 0.65rem;
+    color: $color-white-60;
+    word-break: break-all;
+    max-width: 100%;
   }
 
   .result-box {

@@ -1,0 +1,13 @@
+name = "timevault-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+# Donation address — same as DONATION_ADDRESS in src/lib/bitcoin.ts
+DONATION_ADDRESS = ""
+# mempool.space API endpoint
+MEMPOOL_API = "https://mempool.space/api"
+
+# [secrets]
+# WORKER_PRIVATE_KEY — WIF-encoded Bitcoin private key for the Worker wallet.
+# Set via `wrangler secret put WORKER_PRIVATE_KEY`
