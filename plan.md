@@ -45,7 +45,7 @@ Build a static SvelteKit website deployed to **GitHub Pages** via GitHub Actions
 
 ## Phase 4: Design System + Layout
 
-3. **Global Sass styles** — Glassmorphism utilities (`backdrop-filter: blur`, semi-transparent cards), color palette (white/black only), utopia.png as `position: fixed` full-viewport background, clean sans-serif typography. The page background color should be derived from utopia.png repeated and heavily blurred (`background: repeat` + `filter: blur(~60px)`) so the dominant color bleeds through as an ambient backdrop behind the main image.
+3. **Global Sass styles** — Glassmorphism utilities (`backdrop-filter: blur`, semi-transparent cards), color palette (white/black only), utopia.png as `position: fixed` full-viewport background, clean sans-serif typography. The page background color should be derived from utopia.png repeated and heavily blurred (`background: repeat` + `filter: blur(~60px)`) so the dominant color bleeds through as an ambient backdrop behind the main image. **"Time Vault" logo font**: use a cursive/script typeface for the brand name (similar to Tilda or Krul style — flowing, elegant strokes with tildes and curls). Load via Google Fonts or self-host.
 
 4. **UX pattern: Typeform-style step flow** — One action per screen, full viewport. Navigation via up/down arrow buttons (bottom-right corner) and keyboard arrows. Smooth vertical slide transitions between steps. Progress indicator optional (subtle dots or step count).
 

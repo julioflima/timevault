@@ -1,0 +1,127 @@
+@use 'variables' as *;
+
+*,
+*::before,
+*::after {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+	overflow: hidden;
+	font-family: $font-stack;
+	color: $color-white;
+	-webkit-font-smoothing: antialiased;
+}
+
+// Background layers
+.bg-ambient {
+	position: fixed;
+	inset: 0;
+	z-index: -2;
+	background: url('/timevault/utopia.png') repeat center / 400px;
+	filter: blur(60px) saturate(1.2);
+	transform: scale(1.2); // prevent blur edge gaps
+}
+
+.bg-image {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background: url('/timevault/utopia.png') no-repeat center / cover;
+	opacity: 0.15;
+}
+
+// Glass card
+.card {
+	@include glass;
+	padding: 2rem;
+}
+
+// Buttons
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1.5rem;
+	font-family: $font-stack;
+	font-size: 1rem;
+	font-weight: 600;
+	color: $color-white;
+	background: $color-black-80;
+	border: 1px solid $color-white-20;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: background $transition-fast, border-color $transition-fast;
+
+	&:hover {
+		background: $color-black;
+		border-color: $color-white-60;
+	}
+
+	&--outline {
+		background: transparent;
+		border: 1px solid $color-white-60;
+
+		&:hover {
+			background: $color-white-10;
+		}
+	}
+
+	&--large {
+		padding: 1.25rem 2.5rem;
+		font-size: 1.25rem;
+		border-radius: 12px;
+	}
+}
+
+// Inputs
+.input {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	font-family: $font-stack;
+	font-size: 1rem;
+	color: $color-white;
+	background: $color-white-10;
+	border: 1px solid $color-white-20;
+	border-radius: 8px;
+	outline: none;
+	transition: border-color $transition-fast;
+
+	&::placeholder {
+		color: $color-white-60;
+	}
+
+	&:focus {
+		border-color: $color-white-60;
+	}
+}
+
+textarea.input {
+	resize: vertical;
+	min-height: 120px;
+}
+
+// Utility
+.mono {
+	font-family: $font-mono;
+}
+
+.text-center {
+	text-align: center;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	border: 0;
+}
