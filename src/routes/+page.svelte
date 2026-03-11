@@ -54,7 +54,10 @@
   <div class="hero text-center">
     <h1 class="hero__title">Time Vault</h1>
     <p class="hero__sub">Encrypt a secret for the future</p>
-    <p class="hero__hint">&#9660; Press down to begin</p>
+    <button class="hero__arrow" onclick={() => current = 1} aria-label="Begin">
+      <span class="hero__arrow-icon">&#8595;</span>
+      <span class="hero__arrow-text">press enter</span>
+    </button>
   </div>
 {/snippet}
 
@@ -163,9 +166,10 @@
   }
 
   .hero__title {
+    font-family: 'Kalam', cursive;
     font-size: clamp(3rem, 8vw, 6rem);
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     line-height: 1;
     margin-bottom: 0.5rem;
     color: $color-black;
@@ -174,22 +178,42 @@
   .hero__sub {
     font-size: clamp(1rem, 2.5vw, 1.5rem);
     color: $color-white-60;
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
   }
 
-  .hero__hint {
-    font-size: 0.875rem;
-    color: $color-white-20;
-    animation: pulse 2s infinite;
+  .hero__arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: $color-white-60;
+    animation: bounce 2s infinite;
   }
 
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.3;
+  .hero__arrow-icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .hero__arrow-text {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: $font-mono;
+  }
+
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateY(0);
     }
-    50% {
-      opacity: 0.8;
+    40% {
+      transform: translateY(-12px);
+    }
+    60% {
+      transform: translateY(-6px);
     }
   }
 
