@@ -144,7 +144,7 @@
 {#snippet step1()}
   <div class="hero text-center">
     <h1 class="hero__title">Time Vault</h1>
-    <p class="hero__sub">Encrypt a secret for the future</p>
+    <p class="hero__sub">Encrypt a secret to future</p>
     <button
       class="hero__arrow"
       onclick={() => (current = 1)}
