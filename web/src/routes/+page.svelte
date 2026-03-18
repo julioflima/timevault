@@ -164,9 +164,9 @@
       minYear={currentYear}
       label="Unlock year"
     />
-    {#if yearsFromNow() > 0}
-      <p class="hint">{yearsFromNow()} years from now</p>
-    {/if}
+    <p class="hint">
+      {yearsFromNow()} year{yearsFromNow() !== 1 ? "s" : ""} from now
+    </p>
   </div>
 {/snippet}
 

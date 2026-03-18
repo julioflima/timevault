@@ -44,8 +44,14 @@
   let holdInterval: ReturnType<typeof setInterval> | null = null;
 
   function clearHoldTimers() {
-    if (holdTimeout) { clearTimeout(holdTimeout); holdTimeout = null; }
-    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+    if (holdTimeout) {
+      clearTimeout(holdTimeout);
+      holdTimeout = null;
+    }
+    if (holdInterval) {
+      clearInterval(holdInterval);
+      holdInterval = null;
+    }
   }
 
   function startHold(dir: "up" | "down") {
@@ -57,18 +63,30 @@
     holdTimeout = setTimeout(() => {
       holdInterval = setInterval(() => {
         const still = dir === "up" ? canIncrease : canDecrease;
-        if (!still) { clearHoldTimers(); return; }
+        if (!still) {
+          clearHoldTimers();
+          return;
+        }
         step();
       }, 85);
     }, 260);
   }
 
-  function stopHold() { clearHoldTimers(); }
-  onDestroy(() => { clearHoldTimers(); });
+  function stopHold() {
+    clearHoldTimers();
+  }
+  onDestroy(() => {
+    clearHoldTimers();
+  });
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); decrease(); }
-    else if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); increase(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      decrease();
+    } else if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+      e.preventDefault();
+      increase();
+    }
   }
 
   const canDecrease = $derived(value > minYear);
@@ -84,55 +102,71 @@
     return String(y).padStart(4, "0").split("");
   }
 
-  let digits = $state(toDigits(value));
+  // Always derive current digits directly from value — no lag, no flicker.
+  let displayDigits = $derived(toDigits(value));
+
   let prevDigits = $state(toDigits(value));
   let flipping = $state([false, false, false, false]);
+  let flipTimer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
     const next = toDigits(value);
-    const prev = digits.slice();
+    const prev = prevDigits.slice();
 
     const changed: number[] = [];
     for (let i = 0; i < 4; i++) {
       if (next[i] !== prev[i]) changed.push(i);
     }
 
-    if (changed.length === 0) return;
+    // Always keep prevDigits in sync even when nothing changed.
+    if (changed.length === 0) {
+      prevDigits = next;
+      return;
+    }
 
-    prevDigits = prev;
-    flipping = flipping.map((_, i) => changed.includes(i));
+    // Cancel any pending previous flip timer so rapid clicks don't conflict.
+    if (flipTimer) clearTimeout(flipTimer);
 
-    // After animation completes, update base digits and stop flipping
-    setTimeout(() => {
-      digits = next;
+    flipping = [false, false, false, false].map((_, i) => changed.includes(i));
+
+    flipTimer = setTimeout(() => {
+      prevDigits = next;
       flipping = [false, false, false, false];
+      flipTimer = null;
     }, FLIP_MS);
   });
 </script>
 
 <div class="sf">
   <div class="sf__board" role="group" aria-label={label}>
-    {#each digits as digit, i}
+    {#each displayDigits as digit, i}
       <div class="sf__cell">
-        <!-- Static bottom: shows NEW digit behind the flap -->
+        <!-- Static bottom: shows OLD digit during flip (covered by bottom flap landing) -->
         <div class="sf__half sf__half--bottom">
-          <span class="sf__char">{flipping[i] ? toDigits(value)[i] : digit}</span>
-        </div>
-
-        <!-- Static top: shows current digit -->
-        <div class="sf__half sf__half--top">
           <span class="sf__char">{flipping[i] ? prevDigits[i] : digit}</span>
         </div>
 
-        <!-- Flipping top flap: old digit folds down -->
+        <!-- Static top: shows NEW digit during flip (revealed as top flap falls) -->
+        <div class="sf__half sf__half--top">
+          <span class="sf__char">{digit}</span>
+        </div>
+
+        <!-- Flipping top flap: old digit folds down first -->
         {#if flipping[i]}
-          <div class="sf__flap sf__flap--top" style="animation-duration:{FLIP_MS}ms">
+          <div
+            class="sf__flap sf__flap--top"
+            style="animation-duration:{FLIP_MS / 2}ms"
+          >
             <span class="sf__char">{prevDigits[i]}</span>
           </div>
 
-          <!-- Flipping bottom flap: new digit folds up into place -->
-          <div class="sf__flap sf__flap--bottom" style="animation-duration:{FLIP_MS}ms">
-            <span class="sf__char">{toDigits(value)[i]}</span>
+          <!-- Flipping bottom flap: new digit folds up after top finishes -->
+          <div
+            class="sf__flap sf__flap--bottom"
+            style="animation-duration:{FLIP_MS / 2}ms;animation-delay:{FLIP_MS /
+              2}ms"
+          >
+            <span class="sf__char">{digit}</span>
           </div>
         {/if}
 
@@ -154,10 +188,15 @@
       onpointerup={stopHold}
       onpointercancel={stopHold}
       onpointerleave={stopHold}
-      onkeydown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); startHold("up"); } }}
+      onkeydown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          startHold("up");
+        }
+      }}
       onkeyup={stopHold}
-      onblur={stopHold}
-    >&#9650;</button>
+      onblur={stopHold}>&#9650;</button
+    >
 
     <button
       class="sf__btn"
@@ -167,10 +206,15 @@
       onpointerup={stopHold}
       onpointercancel={stopHold}
       onpointerleave={stopHold}
-      onkeydown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); startHold("down"); } }}
+      onkeydown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          startHold("down");
+        }
+      }}
       onkeyup={stopHold}
-      onblur={stopHold}
-    >&#9660;</button>
+      onblur={stopHold}>&#9660;</button
+    >
   </div>
 
   <!-- Hidden spinbutton for accessibility / keyboard -->
@@ -211,7 +255,7 @@
       0 4px 12px rgba(0, 0, 0, 0.5),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
     perspective: 260px;
-    overflow: hidden;
+    /* No overflow:hidden — it kills 3D perspective transforms */
   }
 
   /* ── static halves ── */
@@ -276,7 +320,7 @@
     background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
     border-radius: 0.5rem 0.5rem 0 0;
     animation: flap-top-down ease-in forwards;
-    z-index: 3;
+    z-index: 4;
   }
 
   .sf__flap--bottom {
@@ -285,7 +329,8 @@
     background: linear-gradient(180deg, #181818 0%, #222 100%);
     border-radius: 0 0 0.5rem 0.5rem;
     animation: flap-bottom-up ease-out forwards;
-    z-index: 2;
+    transform: rotateX(90deg);
+    z-index: 3;
   }
 
   .sf__flap--top .sf__char {
@@ -338,8 +383,12 @@
     box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
   }
 
-  .sf__hinge--l { left: -3px; }
-  .sf__hinge--r { right: -3px; }
+  .sf__hinge--l {
+    left: -3px;
+  }
+  .sf__hinge--r {
+    right: -3px;
+  }
 
   /* ── arrow buttons ── */
   .sf__controls {
@@ -359,7 +408,9 @@
     color: #fff;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 100ms ease, transform 80ms ease;
+    transition:
+      background 100ms ease,
+      transform 80ms ease;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   }
 
