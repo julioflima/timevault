@@ -20,7 +20,7 @@
   const currentYear = new Date().getFullYear();
 
   let current = $state(0);
-  let unlockYear = $state(currentYear + 1);
+  let unlockYear = $state(currentYear);
   let secretType = $state<"phrase" | "file" | null>(null);
   let phrase = $state("");
   let file = $state<File | null>(null);
@@ -161,8 +161,7 @@
     <h2>Time for the vault be open?</h2>
     <YearRoulette
       bind:value={unlockYear}
-      minYear={currentYear + 1}
-      maxYear={currentYear + 100}
+      minYear={currentYear}
       label="Unlock year"
     />
     {#if yearsFromNow() > 0}

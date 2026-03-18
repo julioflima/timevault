@@ -1,7 +1,7 @@
 <script lang="ts">
   let {
-    value = $bindable(new Date().getFullYear() + 1),
-    minYear = new Date().getFullYear() + 1,
+    value = $bindable(new Date().getFullYear()),
+    minYear = new Date().getFullYear(),
     maxYear,
     label = "Unlock year",
   }: {
@@ -11,25 +11,19 @@
     label?: string;
   } = $props();
 
-  const max = typeof maxYear === "number" ? maxYear : minYear + 100;
-  // Curated milestones so labels stay readable
-  const allYears: number[] = [];
-  for (let y = minYear; y <= max; y++) allYears.push(y);
-  const options: number[] = allYears.filter((y) => {
-    const d = y - minYear;
-    if (d <= 5) return true;             // every year for first 5
-    if (d <= 20) return d % 5 === 0;     // every 5 years up to 20
-    return d % 10 === 0 || y === max;    // every 10 years after
-  });
-
-  const count = options.length;
+  const count = 18;
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
   const outerR = size * 0.46;
-  const innerR = size * 0.20;
+  const innerR = size * 0.2;
   const labelR = innerR + (outerR - innerR) * 0.55;
   const sliceAngle = (Math.PI * 2) / count;
+  const sliceDeg = 360 / count;
+  const maxStep =
+    typeof maxYear === "number"
+      ? Math.max(0, maxYear - minYear)
+      : Number.POSITIVE_INFINITY;
 
   let rotation = $state(0);
   let dragging = $state(false);
@@ -75,8 +69,9 @@
     depth: number;
   };
 
-  const sectors: Sector[] = options.map((_, i) => {
-    const a1 = i * sliceAngle - Math.PI / 2;
+  const sectors: Sector[] = Array.from({ length: count }, (_, i) => {
+    // Shift by half slice so the indicator points to the center of a step.
+    const a1 = i * sliceAngle - Math.PI / 2 - sliceAngle / 2;
     const a2 = a1 + sliceAngle;
     const mid = a1 + sliceAngle / 2;
     const lx = cx + Math.cos(mid) * labelR;
@@ -89,8 +84,8 @@
   });
 
   // Riser lines at each sector boundary
-  const risers = options.map((_, i) => {
-    const angle = i * sliceAngle - Math.PI / 2;
+  const risers = Array.from({ length: count }, (_, i) => {
+    const angle = i * sliceAngle - Math.PI / 2 - sliceAngle / 2;
     return {
       x1: cx + Math.cos(angle) * innerR,
       y1: cy + Math.sin(angle) * innerR,
@@ -100,18 +95,60 @@
   });
 
   // Which sector is at indicator
+  const minRotation = Number.isFinite(maxStep)
+    ? -maxStep * sliceDeg
+    : Number.NEGATIVE_INFINITY;
+  const maxRotation = 0;
+
+  function clampStep(step: number): number {
+    if (Number.isFinite(maxStep)) {
+      return Math.max(0, Math.min(maxStep, step));
+    }
+    return Math.max(0, step);
+  }
+
+  function clampRotation(r: number): number {
+    return Math.max(minRotation, Math.min(maxRotation, r));
+  }
+
+  let selectedStep = $derived.by(() => {
+    return clampStep(Math.round(-rotation / sliceDeg));
+  });
+
   let selectedIndex = $derived.by(() => {
-    const norm = ((-rotation % 360) + 360) % 360;
-    return Math.round(norm / (360 / count)) % count;
+    return ((selectedStep % count) + count) % count;
+  });
+
+  function stepForSector(i: number): number {
+    return selectedStep + (i - selectedIndex);
+  }
+
+  function yearForSector(i: number): number | null {
+    const step = stepForSector(i);
+    if (step < 0) return null;
+    if (Number.isFinite(maxStep) && step > maxStep) return null;
+    return minYear + step;
+  }
+
+  $effect(() => {
+    if (!dragging) {
+      value = minYear + selectedStep;
+    }
   });
 
   $effect(() => {
     if (!dragging) {
-      value = options[selectedIndex] ?? minYear;
+      const desiredStep = clampStep((value ?? minYear) - minYear);
+      const target = -desiredStep * sliceDeg;
+      if (Math.abs(rotation - target) > 0.0001) {
+        rotation = clampRotation(target);
+      }
     }
   });
 
   function sectorFill(i: number, depth: number): string {
+    const year = yearForSector(i);
+    if (year === null) return "rgba(255,255,255,0.04)";
     if (i === selectedIndex) return "rgba(20, 20, 20, 0.92)";
     // Alternating light/dark with depth gradient
     const base = i % 2 === 0 ? 28 : 18;
@@ -141,7 +178,7 @@
     let delta = ((angle - lastAngle) * 180) / Math.PI;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
-    rotation += delta;
+    rotation = clampRotation(rotation + delta);
     velocity = delta;
     lastAngle = angle;
   }
@@ -158,30 +195,30 @@
       snapToNearest();
       return;
     }
-    rotation += velocity;
+    rotation = clampRotation(rotation + velocity);
+    if (rotation === minRotation || rotation === maxRotation) {
+      velocity = 0;
+      snapToNearest();
+      return;
+    }
     velocity *= 0.96;
     animFrame = requestAnimationFrame(spin);
   }
 
   function snapToNearest() {
-    const sliceDeg = 360 / count;
-    const norm = ((-rotation % 360) + 360) % 360;
-    const idx = Math.round(norm / sliceDeg);
-    const targetNorm = idx * sliceDeg;
-    const currentNorm = ((-rotation % 360) + 360) % 360;
-    let diff = targetNorm - currentNorm;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-    animateSnap(rotation - diff, 300);
+    const step = clampStep(Math.round(-rotation / sliceDeg));
+    const target = -step * sliceDeg;
+    animateSnap(target, 300);
   }
 
   function animateSnap(target: number, duration: number) {
     const start = rotation;
+    const safeTarget = clampRotation(target);
     const t0 = performance.now();
     function frame(now: number) {
       const t = Math.min((now - t0) / duration, 1);
       const ease = 1 - Math.pow(1 - t, 3);
-      rotation = start + (target - start) * ease;
+      rotation = clampRotation(start + (safeTarget - start) * ease);
       if (t < 1) animFrame = requestAnimationFrame(frame);
     }
     animFrame = requestAnimationFrame(frame);
@@ -190,8 +227,7 @@
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
     if (Math.abs(e.deltaY) < 4) return;
-    const sliceDeg = 360 / count;
-    rotation += e.deltaY > 0 ? -sliceDeg : sliceDeg;
+    rotation = clampRotation(rotation + (e.deltaY > 0 ? -sliceDeg : sliceDeg));
     snapToNearest();
   }
 </script>
@@ -271,17 +307,23 @@
 
         <!-- Labels -->
         {#each sectors as s, i}
+          {@const year = yearForSector(i)}
           <text
             x={s.lx}
             y={s.ly}
             text-anchor="middle"
             dominant-baseline="central"
             transform="rotate({s.lAngle}, {s.lx}, {s.ly})"
-            fill={i === selectedIndex ? "white" : "rgba(255,255,255,0.75)"}
+            fill={year === null
+              ? "rgba(255,255,255,0.16)"
+              : i === selectedIndex
+                ? "white"
+                : "rgba(255,255,255,0.75)"}
             font-size={Math.max(10, size * 0.042)}
-            font-weight={i === selectedIndex ? "800" : "500"}
+            font-weight={i === selectedIndex && year !== null ? "800" : "500"}
             font-family="monospace"
-            style="pointer-events:none;user-select:none">{options[i]}</text
+            style="pointer-events:none;user-select:none"
+          >{year ?? ""}</text
           >
         {/each}
       </g>
