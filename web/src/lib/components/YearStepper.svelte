@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
-  import { tick } from "svelte";
+  import { onDestroy, untrack } from "svelte";
 
   let {
     value = $bindable(new Date().getFullYear()),
@@ -107,26 +106,25 @@
 
   let prevDigits = $state(toDigits(value));
   let flipping = $state([false, false, false, false]);
+  let flipGen = $state(0);
   let flipTimer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
     const next = toDigits(value);
-    const prev = prevDigits.slice();
+    const prev = untrack(() => prevDigits.slice());
 
     const changed: number[] = [];
     for (let i = 0; i < 4; i++) {
       if (next[i] !== prev[i]) changed.push(i);
     }
 
-    // Always keep prevDigits in sync even when nothing changed.
-    if (changed.length === 0) {
-      prevDigits = next;
-      return;
-    }
+    if (changed.length === 0) return;
 
-    // Cancel any pending previous flip timer so rapid clicks don't conflict.
     if (flipTimer) clearTimeout(flipTimer);
 
+    // Increment generation to force {#key} to destroy and recreate flap
+    // elements, restarting CSS animations even if flipping[i] was already true.
+    flipGen = untrack(() => flipGen) + 1;
     flipping = [false, false, false, false].map((_, i) => changed.includes(i));
 
     flipTimer = setTimeout(() => {
@@ -152,23 +150,25 @@
         </div>
 
         <!-- Flipping top flap: old digit folds down first -->
-        {#if flipping[i]}
-          <div
-            class="sf__flap sf__flap--top"
-            style="animation-duration:{FLIP_MS / 2}ms"
-          >
-            <span class="sf__char">{prevDigits[i]}</span>
-          </div>
+        {#key flipGen}
+          {#if flipping[i]}
+            <div
+              class="sf__flap sf__flap--top"
+              style="animation-duration:{FLIP_MS / 2}ms"
+            >
+              <span class="sf__char">{prevDigits[i]}</span>
+            </div>
 
-          <!-- Flipping bottom flap: new digit folds up after top finishes -->
-          <div
-            class="sf__flap sf__flap--bottom"
-            style="animation-duration:{FLIP_MS / 2}ms;animation-delay:{FLIP_MS /
-              2}ms"
-          >
-            <span class="sf__char">{digit}</span>
-          </div>
-        {/if}
+            <!-- Flipping bottom flap: new digit folds up after top finishes -->
+            <div
+              class="sf__flap sf__flap--bottom"
+              style="animation-duration:{FLIP_MS / 2}ms;animation-delay:{FLIP_MS /
+                2}ms"
+            >
+              <span class="sf__char">{digit}</span>
+            </div>
+          {/if}
+        {/key}
 
         <!-- Horizontal split line + hinge dots -->
         <div class="sf__split" aria-hidden="true">
